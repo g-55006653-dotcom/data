@@ -594,13 +594,29 @@
     <!-- Alpine JS Core (Added 'defer' tag to guarantee that custom JS declarations compile before boot) -->
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
+
     <style>
         [x-cloak] { display: none !important; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         .dark ::-webkit-scrollbar-thumb { background: #2c3545; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* Mobile fixes */
+        html, body { overflow-x: hidden; max-width: 100%; }
+        svg[data-lucide] { flex-shrink: 0; display: inline-block; }
+        select, input, button { min-height: 44px; }
+        table { min-width: 980px; }
+
+        @media (max-width: 768px) {
+            header.sticky { position: relative !important; }
+            nav .max-w-7xl { padding-bottom: 4px; }
+            h1 { font-size: 1rem !important; line-height: 1.4 !important; }
+            .max-w-7xl { max-width: 100% !important; }
+            main { padding: 12px !important; }
+        }
     </style>
+
 </head>
 <body x-data="dashboardApp" :class="darkMode ? 'dark bg-powerbi-darkBg text-slate-100' : 'bg-slate-50 text-slate-800'" class="font-sans transition-colors duration-300">
 

@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Penglibatan Program Koakademik UPBM JPN Selangor 2026</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        powerbi: {
+                            darkBg: '#0f141c',
+                            cardBg: '#181e29',
+                            border: '#2c3545',
+                            accent: '#00b4d8',
+                            hover: '#0077b6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Application Controller Logic (Registered via Alpine.data for safe lifecycle initialization) -->
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('dashboardApp', () => {
+                return {
+                    darkMode: true, // Defaults to Power BI Dark Theme
+                    loading: true,
+                    refreshing: false, 
+                    activePage: 'peserta', // 'peserta' or 'guru'
+                    dataSourcePeserta: 'sheets', // 'sheets' or 'fallback'
+                    dataSourceGuru: 'sheets',
+                    
+                    // Datasets
+                    pesertaRaw: [],
+                    pesertaFiltered: [],
+                    guruRaw: [],
+                    guruFiltered: [],
+
+                    // Search Terms
+                    searchTermPeserta: '',
+                    searchTermGuru: '',
+
+                    // Pagination
+                    currentPagePeserta: 1,
+                    currentPageGuru: 1,
+                    itemsPerPage: 10,
+
+                    // Sorting
+                    sortColumnPeserta: 'NAMA_MURID',
+                    sortAscPeserta: true,
+                    sortColumnGuru: 'NAMA_GURU',
+                    sortAscGuru: true,
+
+                    // Toast state
+                    toast: {
+                        show: false,
+                        message: '',
+                        type: 'success'
+                    },
+
+                    // Active filters
+                    filtersPeserta: { pertandingan: '', daerah: '', jantina: '', bangsa: '', umur: '' },
+                    filtersGuru: { pertandingan: '', daerah: '', jantina: '', bangsa: '' },
+
+                    // Unique dropdown lists
+                    uniquePeserta: { pertandingan: [], daerah: [], jantina: [], bangsa: [], umur: [] },
+                    uniqueGuru: { pertandingan: [], daerah: [], jantina: [], bangsa: [] },
+
+                    // Stats / KPIs
+                    statsPeserta: { schoolCount: 0, districtCount: 0, averageAge: 0 },
+                    statsGuru: { schoolCount: 0, districtCount: 0, teacherCount: 0 },
+
+                    // Chart lists
+                    chartsPeserta: { daerah: [], pertandingan: [], jantina: [], bangsa: [] },
+                    chartsGuru: { daerah: [], pertandingan: [], jantina: [], bangsa: [] },
+
+                    // Robust Fallback Datasets
+                    fallbackDatasetPeserta: [
+                        { PERTANDINGAN: 'Sajak', DAERAH: 'Klang', SEKOLAH: 'SMK Tengku Ampuan Jemaah', NAMA_MURID: 'AFIQ DANISH BIN ANUAR', JANTINA: 'Lelaki', BANGSA: 'Melayu', UMUR: '15' },
+                        { PERTANDINGAN: 'Sajak', DAERAH: 'Petaling Perdana', SEKOLAH: 'SMK Seksyen 19', NAMA_MURID: 'LIM JIA WEI', JANTINA: 'Lelaki', BANGSA: 'Cina', UMUR: '16' },
+                        { PERTANDINGAN: 'Debat Bahasa Melayu', DAERAH: 'Gombak', SEKOLAH: 'SMK Hillcrest', NAMA_MURID: 'DIVYA A/P RAMAN', JANTINA: 'Perempuan', BANGSA: 'India', UMUR: '17' },
+                        { PERTANDINGAN: 'Debat Bahasa Melayu', DAERAH: 'Hulu Langat', SEKOLAH: 'SMK Kajang Utama', NAMA_MURID: 'NUR AMIRA BINTI ROZLAN', JANTINA: 'Perempuan', BANGSA: 'Melayu', UMUR: '16' },
+                        { PERTANDINGAN: 'Pidato', DAERAH: 'Kuala Selangor', SEKOLAH: 'SMK Kuala Selangor', NAMA_MURID: 'CHONG WEI SEONG', JANTINA: 'Lelaki', BANGSA: 'Cina', UMUR: '14' },
+                        { PERTANDINGAN: 'Pidato', DAERAH: 'Sabak Bernam', SEKOLAH: 'SMK Ungku Husin', NAMA_MURID: 'SITI AMINAH BINTI BAKRI', JANTINA: 'Perempuan', BANGSA: 'Melayu', UMUR: '15' },
+                        { PERTANDINGAN: 'Bicara Berirama', DAERAH: 'Klang', SEKOLAH: 'SMK Convent Klang', NAMA_MURID: 'ESTHER CHIN MEI LING', JANTINA: 'Perempuan', BANGSA: 'Cina', UMUR: '13' },
+                        { PERTANDINGAN: 'Bicara Berirama', DAERAH: 'Sepang', SEKOLAH: 'SMK Cyberjaya', NAMA_MURID: 'DANIAL SYAHMI BIN AZIZ', JANTINA: 'Lelaki', BANGSA: 'Melayu', UMUR: '14' },
+                        { PERTANDINGAN: 'Forum Remaja', DAERAH: 'Kuala Langat', SEKOLAH: 'SMK Telok Datok', NAMA_MURID: 'SARAVANAN A/L GOPAL', JANTINA: 'Lelaki', BANGSA: 'India', UMUR: '16' },
+                        { PERTANDINGAN: 'Forum Remaja', DAERAH: 'Petaling Utama', SEKOLAH: 'SMK Damansara Utama', NAMA_MURID: 'ZARA KHADIJA BINTI FARID', JANTINA: 'Perempuan', BANGSA: 'Melayu', UMUR: '17' },
+                        { PERTANDINGAN: 'Sajak', DAERAH: 'Hulu Selangor', SEKOLAH: 'SMK Kuala Kubu Bharu', NAMA_MURID: 'NURUL ASYIKIN BINTI MOHD', JANTINA: 'Perempuan', BANGSA: 'Melayu', UMUR: '15' }
+                    ],
+
+                    fallbackDatasetGuru: [
+                        { PERTANDINGAN: 'Sajak', DAERAH: 'Klang', SEKOLAH: 'SMK Tengku Ampuan Jemaah', NAMA_GURU: 'PUAN FARIDAH BINTI GHAZALI', JANTINA: 'Perempuan', BANGSA: 'Melayu' },
+                        { PERTANDINGAN: 'Sajak', DAERAH: 'Petaling Perdana', SEKOLAH: 'SMK Seksyen 19', NAMA_GURU: 'ENCIK LEE KOK WENG', JANTINA: 'Lelaki', BANGSA: 'Cina' },
+                        { PERTANDINGAN: 'Debat Bahasa Melayu', DAERAH: 'Gombak', SEKOLAH: 'SMK Hillcrest', NAMA_GURU: 'PUAN SATHIA A/P ARUMUGAM', JANTINA: 'Perempuan', BANGSA: 'India' },
+                        { PERTANDINGAN: 'Debat Bahasa Melayu', DAERAH: 'Hulu Langat', SEKOLAH: 'SMK Kajang Utama', NAMA_GURU: 'PUAN ZAINAB BINTI ABU', JANTINA: 'Perempuan', BANGSA: 'Melayu' },
+                        { PERTANDINGAN: 'Pidato', DAERAH: 'Kuala Selangor', SEKOLAH: 'SMK Kuala Selangor', NAMA_GURU: 'ENCIK AHMAD FIKRI BIN ROSLI', JANTINA: 'Lelaki', BANGSA: 'Melayu' },
+                        { PERTANDINGAN: 'Pidato', DAERAH: 'Sabak Bernam', SEKOLAH: 'SMK Ungku Husin', NAMA_GURU: 'PUAN HALIMAH BINTI SAID', JANTINA: 'Perempuan', BANGSA: 'Melayu' },
+                        { PERTANDINGAN: 'Bicara Berirama', DAERAH: 'Klang', SEKOLAH: 'SMK Convent Klang', NAMA_GURU: 'PUAN TAY MEI MEI', JANTINA: 'Perempuan', BANGSA: 'Cina' },
+                        { PERTANDINGAN: 'Bicara Berirama', DAERAH: 'Sepang', SEKOLAH: 'SMK Cyberjaya', NAMA_GURU: 'ENCIK SYAHMI BIN AZMAN', JANTINA: 'Lelaki', BANGSA: 'Melayu' },
+                        { PERTANDINGAN: 'Forum Remaja', DAERAH: 'Kuala Langat', SEKOLAH: 'SMK Telok Datok', NAMA_GURU: 'ENCIK BALA A/L KRISHNAN', JANTINA: 'Lelaki', BANGSA: 'India' },
+                        { PERTANDINGAN: 'Forum Remaja', DAERAH: 'Petaling Utama', SEKOLAH: 'SMK Damansara Utama', NAMA_GURU: 'PUAN ZARA BINTI IBRAHIM', JANTINA: 'Perempuan', BANGSA: 'Melayu' },
+                        { PERTANDINGAN: 'Pidato', DAERAH: 'Hulu Selangor', SEKOLAH: 'SMK Kuala Kubu Bharu', NAMA_GURU: 'PUAN NORHAYATI BINTI YUSOF', JANTINA: 'Perempuan', BANGSA: 'Melayu' }
+                    ],
+
+                    async init() {
+                        lucide.createIcons();
+                        await this.loadAllData(false);
+
+                        // Watchers for Peserta
+                        this.$watch('filtersPeserta', () => { this.applyFiltersPeserta(); }, { deep: true });
+                        this.$watch('searchTermPeserta', () => { this.applyFiltersPeserta(); });
+
+                        // Watchers for Guru
+                        this.$watch('filtersGuru', () => { this.applyFiltersGuru(); }, { deep: true });
+                        this.$watch('searchTermGuru', () => { this.applyFiltersGuru(); });
+                    },
+
+                    // Load both datasets concurrently with cache-busting logic
+                    async loadAllData(isRefresh = false) {
+                        if (isRefresh) {
+                            this.refreshing = true;
+                        } else {
+                            this.loading = true;
+                        }
+
+                        const urlPeserta = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTP4Qx4Aj4E0xQez5FU84v3XMeYQHNjiAVmEHUwZ40hMTtHVuexRqq6jNQ5gTa-2JZV3XGjuQ5hKSON/pub?output=csv';
+                        const urlGuru = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQEpx_TdhvdJwn7Rs9dpugbLWZXknHqZ8dRp40cJvwf3ocDksL8fDHxPDoTbu3ZKOsANm-c53fG3eJe/pub?output=csv';
+                        
+                        const fetchUrlPeserta = isRefresh ? `${urlPeserta}&t=${new Date().getTime()}` : urlPeserta;
+                        const fetchUrlGuru = isRefresh ? `${urlGuru}&t=${new Date().getTime()}` : urlGuru;
+
+                        // Fetch Peserta Data
+                        try {
+                            const res = await fetch(fetchUrlPeserta);
+                            if (!res.ok) throw new Error();
+                            const csvText = await res.text();
+                            this.pesertaRaw = this.parseCSV(csvText, 'peserta');
+                            this.dataSourcePeserta = 'sheets';
+                        } catch (e) {
+                            console.warn("Gagal dapati data Murid, menggunakan fallback.");
+                            this.pesertaRaw = [...this.fallbackDatasetPeserta];
+                            this.dataSourcePeserta = 'fallback';
+                        }
+
+                        // Fetch Guru Data
+                        try {
+                            const res = await fetch(fetchUrlGuru);
+                            if (!res.ok) throw new Error();
+                            const csvText = await res.text();
+                            this.guruRaw = this.parseCSV(csvText, 'guru');
+                            this.dataSourceGuru = 'sheets';
+                        } catch (e) {
+                            console.warn("Gagal dapati data Guru, menggunakan fallback.");
+                            this.guruRaw = [...this.fallbackDatasetGuru];
+                            this.dataSourceGuru = 'fallback';
+                        }
+
+                        this.buildUniqueFiltersPeserta();
+                        this.buildUniqueFiltersGuru();
+                        this.applyFiltersPeserta();
+                        this.applyFiltersGuru();
+
+                        this.loading = false;
+                        this.refreshing = false;
+
+                        if (isRefresh) {
+                            this.showToast('Semua maklumat JPN Selangor JPN 2026 berjaya disegarkan!');
+                        }
+
+                        this.$nextTick(() => {
+                            lucide.createIcons();
+                        });
+                    },
+
+                    async refreshData() {
+                        await this.loadAllData(true);
+                    },
+
+                    showToast(message, type = 'success') {
+                        this.toast.message = message;
+                        this.toast.type = type;
+                        this.toast.show = true;
+                        setTimeout(() => { this.toast.show = false; }, 4000);
+                    },
+
+                    toggleTheme() {
+                        this.darkMode = !this.darkMode;
+                        if (this.darkMode) {
+                            document.documentElement.classList.add('dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                        }
+                    },
+
+                    // Dynamic Robust CSV Parser with specific and fuzzy mapping
+                    parseCSV(text, type) {
+                        const lines = text.split(/\r?\n/);
+                        if (lines.length < 2) return [];
+
+                        const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                        const requiredHeaders = type === 'peserta' 
+                            ? ['PERTANDINGAN', 'DAERAH', 'SEKOLAH', 'NAMA_MURID', 'JANTINA', 'BANGSA', 'UMUR']
+                            : ['PERTANDINGAN', 'DAERAH', 'SEKOLAH', 'NAMA_GURU', 'JANTINA', 'BANGSA'];
+
+                        const headerMapping = {};
+                        requiredHeaders.forEach(req => {
+                            const normReq = req.replace(/[\s_-]/g, '').toUpperCase();
+                            const index = rawHeaders.findIndex(rh => {
+                                const normRh = rh.replace(/[\s_-]/g, '').toUpperCase();
+                                
+                                // Exact Match
+                                if (normRh === normReq) return true;
+                                
+                                // Fuzzy mapping for DAERAH (commonly referred as PPD in Guru's sheet)
+                                if (req === 'DAERAH' && (normRh === 'PPD' || normRh.includes('PPD') || normRh.includes('DAERAH'))) return true;
+
+                                // Fuzzy mapping for NAMA_MURID
+                                if (req === 'NAMA_MURID' && (normRh === 'NAMA' || normRh.includes('MURID') || normRh === 'NAMAMURID' || normRh.includes('PESERTA'))) return true;
+
+                                // Fuzzy mapping for NAMA_GURU
+                                if (req === 'NAMA_GURU' && (normRh === 'NAMA' || normRh.includes('GURU') || normRh === 'NAMAGURU' || normRh.includes('PEMBIMBING'))) return true;
+
+                                // Fuzzy mapping for SEKOLAH
+                                if (req === 'SEKOLAH' && (normRh.includes('SEKOLAH') || normRh.includes('KOD'))) return true;
+
+                                // Fuzzy mapping for PERTANDINGAN
+                                if (req === 'PERTANDINGAN' && (normRh.includes('PERTANDINGAN') || normRh.includes('KATEGORI'))) return true;
+
+                                // Fuzzy mapping for JANTINA
+                                if (req === 'JANTINA' && (normRh.includes('JANTINA') || normRh.includes('GENDER'))) return true;
+
+                                // Fuzzy mapping for BANGSA
+                                if (req === 'BANGSA' && (normRh.includes('BANGSA') || normRh.includes('KAUM') || normRh.includes('ETNIK'))) return true;
+
+                                return false;
+                            });
+                            if (index !== -1) headerMapping[req] = index;
+                        });
+
+                        const results = [];
+                        for (let i = 1; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            if (!line) continue;
+
+                            const columns = [];
+                            let insideQuotes = false;
+                            let entry = '';
+
+                            for (let charIndex = 0; charIndex < line.length; charIndex++) {
+                                const char = line[charIndex];
+                                if (char === '"') {
+                                    insideQuotes = !insideQuotes;
+                                } else if (char === ',' && !insideQuotes) {
+                                    columns.push(entry.trim().replace(/^"|"$/g, ''));
+                                    entry = '';
+                                } else {
+                                    entry += char;
+                                }
+                            }
+                            columns.push(entry.trim().replace(/^"|"$/g, ''));
+
+                            const obj = {};
+                            let validRecord = false;
+
+                            requiredHeaders.forEach(req => {
+                                const idx = headerMapping[req];
+                                if (idx !== undefined && columns[idx] !== undefined) {
+                                    obj[req] = columns[idx].trim();
+                                    validRecord = true;
+                                } else {
+                                    obj[req] = '';
+                                }
+                            });
+
+                            if (obj.BANGSA) obj.BANGSA = this.standardizeTitleCase(obj.BANGSA);
+                            if (obj.JANTINA) obj.JANTINA = this.standardizeTitleCase(obj.JANTINA);
+                            if (obj.DAERAH) obj.DAERAH = this.standardizeTitleCase(obj.DAERAH);
+
+                            if (validRecord) results.push(obj);
+                        }
+                        return results;
+                    },
+
+                    standardizeTitleCase(str) {
+                        if (!str) return '';
+                        return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                    },
+
+                    // Filter builders
+                    buildUniqueFiltersPeserta() {
+                        ['pertandingan', 'daerah', 'jantina', 'bangsa', 'umur'].forEach(field => {
+                            const key = field.toUpperCase();
+                            this.uniquePeserta[field] = [...new Set(this.pesertaRaw.map(row => row[key]))]
+                                .filter(Boolean)
+                                .sort((a, b) => field === 'umur' ? parseInt(a) - parseInt(b) : a.localeCompare(b));
+                        });
+                    },
+
+                    buildUniqueFiltersGuru() {
+                        ['pertandingan', 'daerah', 'jantina', 'bangsa'].forEach(field => {
+                            const key = field.toUpperCase();
+                            this.uniqueGuru[field] = [...new Set(this.guruRaw.map(row => row[key]))]
+                                .filter(Boolean)
+                                .sort((a, b) => a.localeCompare(b));
+                        });
+                    },
+
+                    // Peserta Filtering Engine
+                    applyFiltersPeserta() {
+                        let res = [...this.pesertaRaw];
+                        if (this.filtersPeserta.pertandingan) res = res.filter(r => r.PERTANDINGAN === this.filtersPeserta.pertandingan);
+                        if (this.filtersPeserta.daerah) res = res.filter(r => r.DAERAH === this.filtersPeserta.daerah);
+                        if (this.filtersPeserta.jantina) res = res.filter(r => r.JANTINA === this.filtersPeserta.jantina);
+                        if (this.filtersPeserta.bangsa) res = res.filter(r => r.BANGSA === this.filtersPeserta.bangsa);
+                        if (this.filtersPeserta.umur) res = res.filter(r => r.UMUR === this.filtersPeserta.umur);
+
+                        this.pesertaFiltered = res;
+                        this.currentPagePeserta = 1;
+
+                        // Stats
+                        const schools = [...new Set(res.map(r => r.SEKOLAH))].filter(Boolean);
+                        const districts = [...new Set(res.map(r => r.DAERAH))].filter(Boolean);
+                        const totalAge = res.reduce((sum, r) => sum + (parseInt(r.UMUR) || 0), 0);
+
+                        this.statsPeserta.schoolCount = schools.length;
+                        this.statsPeserta.districtCount = districts.length;
+                        this.statsPeserta.averageAge = res.length > 0 ? (totalAge / res.length).toFixed(1) : 0;
+
+                        this.renderVisualsPeserta();
+                    },
+
+                    // Guru Filtering Engine
+                    applyFiltersGuru() {
+                        let res = [...this.guruRaw];
+                        if (this.filtersGuru.pertandingan) res = res.filter(r => r.PERTANDINGAN === this.filtersGuru.pertandingan);
+                        if (this.filtersGuru.daerah) res = res.filter(r => r.DAERAH === this.filtersGuru.daerah);
+                        if (this.filtersGuru.jantina) res = res.filter(r => r.JANTINA === this.filtersGuru.jantina);
+                        if (this.filtersGuru.bangsa) res = res.filter(r => r.BANGSA === this.filtersGuru.bangsa);
+
+                        this.guruFiltered = res;
+                        this.currentPageGuru = 1;
+
+                        // Stats
+                        const schools = [...new Set(res.map(r => r.SEKOLAH))].filter(Boolean);
+                        const districts = [...new Set(res.map(r => r.DAERAH))].filter(Boolean);
+
+                        this.statsGuru.schoolCount = schools.length;
+                        this.statsGuru.districtCount = districts.length;
+                        this.statsGuru.teacherCount = res.length;
+
+                        this.renderVisualsGuru();
+                    },
+
+                    resetFilters() {
+                        if (this.activePage === 'peserta') {
+                            this.filtersPeserta = { pertandingan: '', daerah: '', jantina: '', bangsa: '', umur: '' };
+                            this.searchTermPeserta = '';
+                            this.applyFiltersPeserta();
+                        } else {
+                            this.filtersGuru = { pertandingan: '', daerah: '', jantina: '', bangsa: '' };
+                            this.searchTermGuru = '';
+                            this.applyFiltersGuru();
+                        }
+                    },
+
+                    renderVisualsPeserta() {
+                        const total = this.pesertaFiltered.length;
+
+                        // 1. Daerah (10 Daerah)
+                        const daerahCounts = {};
+                        this.pesertaFiltered.forEach(r => { if (r.DAERAH) daerahCounts[r.DAERAH] = (daerahCounts[r.DAERAH] || 0) + 1; });
+                        this.chartsPeserta.daerah = Object.keys(daerahCounts)
+                            .map(key => ({ name: key, count: daerahCounts[key], percentage: total > 0 ? Math.round((daerahCounts[key]/total)*100) : 0 }))
+                            .sort((a,b) => b.count - a.count).slice(0, 10);
+
+                        // 2. Pertandingan
+                        const pertCounts = {};
+                        this.pesertaFiltered.forEach(r => { if (r.PERTANDINGAN) pertCounts[r.PERTANDINGAN] = (pertCounts[r.PERTANDINGAN] || 0) + 1; });
+                        this.chartsPeserta.pertandingan = Object.keys(pertCounts)
+                            .map(key => ({ name: key, count: pertCounts[key], percentage: total > 0 ? Math.round((pertCounts[key]/total)*100) : 0 }))
+                            .sort((a,b) => b.count - a.count).slice(0, 5);
+
+                        // 3. Jantina
+                        const jantinaCounts = {};
+                        this.pesertaFiltered.forEach(r => { if (r.JANTINA) jantinaCounts[r.JANTINA] = (jantinaCounts[r.JANTINA] || 0) + 1; });
+                        this.chartsPeserta.jantina = Object.keys(jantinaCounts).map(key => ({
+                            name: key, count: jantinaCounts[key], percentage: total > 0 ? Math.round((jantinaCounts[key]/total)*100) : 0
+                        }));
+
+                        // 4. Bangsa
+                        const bangsaCounts = {};
+                        this.pesertaFiltered.forEach(r => { if (r.BANGSA) bangsaCounts[r.BANGSA] = (bangsaCounts[r.BANGSA] || 0) + 1; });
+                        this.chartsPeserta.bangsa = Object.keys(bangsaCounts).map(key => ({
+                            name: key, count: bangsaCounts[key], percentage: total > 0 ? Math.round((bangsaCounts[key]/total)*100) : 0
+                        })).sort((a,b) => b.percentage - a.percentage);
+                    },
+
+                    renderVisualsGuru() {
+                        const total = this.guruFiltered.length;
+
+                        // 1. Daerah (10 Daerah)
+                        const daerahCounts = {};
+                        this.guruFiltered.forEach(r => { if (r.DAERAH) daerahCounts[r.DAERAH] = (daerahCounts[r.DAERAH] || 0) + 1; });
+                        this.chartsGuru.daerah = Object.keys(daerahCounts)
+                            .map(key => ({ name: key, count: daerahCounts[key], percentage: total > 0 ? Math.round((daerahCounts[key]/total)*100) : 0 }))
+                            .sort((a,b) => b.count - a.count).slice(0, 10);
+
+                        // 2. Pertandingan
+                        const pertCounts = {};
+                        this.guruFiltered.forEach(r => { if (r.PERTANDINGAN) pertCounts[r.PERTANDINGAN] = (pertCounts[r.PERTANDINGAN] || 0) + 1; });
+                        this.chartsGuru.pertandingan = Object.keys(pertCounts)
+                            .map(key => ({ name: key, count: pertCounts[key], percentage: total > 0 ? Math.round((pertCounts[key]/total)*100) : 0 }))
+                            .sort((a,b) => b.count - a.count).slice(0, 5);
+
+                        // 3. Jantina
+                        const jantinaCounts = {};
+                        this.guruFiltered.forEach(r => { if (r.JANTINA) jantinaCounts[r.JANTINA] = (jantinaCounts[r.JANTINA] || 0) + 1; });
+                        this.chartsGuru.jantina = Object.keys(jantinaCounts).map(key => ({
+                            name: key, count: jantinaCounts[key], percentage: total > 0 ? Math.round((jantinaCounts[key]/total)*100) : 0
+                        }));
+
+                        // 4. Bangsa
+                        const bangsaCounts = {};
+                        this.guruFiltered.forEach(r => { if (r.BANGSA) bangsaCounts[r.BANGSA] = (bangsaCounts[r.BANGSA] || 0) + 1; });
+                        this.chartsGuru.bangsa = Object.keys(bangsaCounts).map(key => ({
+                            name: key, count: bangsaCounts[key], percentage: total > 0 ? Math.round((bangsaCounts[key]/total)*100) : 0
+                        })).sort((a,b) => b.percentage - a.percentage);
+                    },
+
+                    getBangsaColor(bangsa) {
+                        const name = bangsa.toUpperCase();
+                        if (name.includes('MELAYU')) return '#10b981';
+                        if (name.includes('CINA') || name.includes('CHINESE')) return '#f59e0b';
+                        if (name.includes('INDIA')) return '#6366f1';
+                        return '#a855f7';
+                    },
+
+                    getConicGradient(dataList, type) {
+                        if (!dataList || dataList.length === 0) {
+                            return this.darkMode ? '#1e293b' : '#e2e8f0';
+                        }
+                        let accumulated = 0;
+                        const stops = [];
+                        dataList.forEach(item => {
+                            const start = accumulated;
+                            accumulated += item.percentage;
+                            const color = type === 'jantina'
+                                ? (item.name.toUpperCase() === 'LELAKI' ? '#00b4d8' : '#ec4899')
+                                : this.getBangsaColor(item.name);
+                            stops.push(`${color} ${start}% ${accumulated}%`);
+                        });
+                        if (accumulated < 100) {
+                            stops.push(`${this.darkMode ? '#1e293b' : '#e2e8f0'} ${accumulated}% 100%`);
+                        }
+                        return `conic-gradient(${stops.join(', ')})`;
+                    },
+
+                    // Dynamic Searching, Sorting & Paginated Accessors (Computed-style)
+                    get searchedDataPeserta() {
+                        if (!this.searchTermPeserta.trim()) return this.pesertaFiltered;
+                        const query = this.searchTermPeserta.toLowerCase();
+                        return this.pesertaFiltered.filter(row => 
+                            (row.NAMA_MURID && row.NAMA_MURID.toLowerCase().includes(query)) ||
+                            (row.SEKOLAH && row.SEKOLAH.toLowerCase().includes(query))
+                        );
+                    },
+
+                    get sortedDataPeserta() {
+                        const data = [...this.searchedDataPeserta];
+                        if (!this.sortColumnPeserta) return data;
+                        return data.sort((a, b) => {
+                            let valA = a[this.sortColumnPeserta] || '';
+                            let valB = b[this.sortColumnPeserta] || '';
+                            if (this.sortColumnPeserta === 'UMUR') {
+                                return this.sortAscPeserta ? (parseInt(valA) - parseInt(valB)) : (parseInt(valB) - parseInt(valA));
+                            }
+                            return this.sortAscPeserta ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        });
+                    },
+
+                    get paginatedDataPeserta() {
+                        const start = (this.currentPagePeserta - 1) * this.itemsPerPage;
+                        return this.sortedDataPeserta.slice(start, start + this.itemsPerPage);
+                    },
+
+                    get totalPagesPeserta() {
+                        return Math.ceil(this.sortedDataPeserta.length / this.itemsPerPage);
+                    },
+
+                    toggleSortPeserta(col) {
+                        if (this.sortColumnPeserta === col) {
+                            this.sortAscPeserta = !this.sortAscPeserta;
+                        } else {
+                            this.sortColumnPeserta = col;
+                            this.sortAscPeserta = true;
+                        }
+                        this.currentPagePeserta = 1;
+                    },
+
+                    // Guru getters
+                    get searchedDataGuru() {
+                        if (!this.searchTermGuru.trim()) return this.guruFiltered;
+                        const query = this.searchTermGuru.toLowerCase();
+                        return this.guruFiltered.filter(row => 
+                            (row.NAMA_GURU && row.NAMA_GURU.toLowerCase().includes(query)) ||
+                            (row.SEKOLAH && row.SEKOLAH.toLowerCase().includes(query))
+                        );
+                    },
+
+                    get sortedDataGuru() {
+                        const data = [...this.searchedDataGuru];
+                        if (!this.sortColumnGuru) return data;
+                        return data.sort((a, b) => {
+                            let valA = a[this.sortColumnGuru] || '';
+                            let valB = b[this.sortColumnGuru] || '';
+                            return this.sortAscGuru ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                        });
+                    },
+
+                    get paginatedDataGuru() {
+                        const start = (this.currentPageGuru - 1) * this.itemsPerPage;
+                        return this.sortedDataGuru.slice(start, start + this.itemsPerPage);
+                    },
+
+                    get totalPagesGuru() {
+                        return Math.ceil(this.sortedDataGuru.length / this.itemsPerPage);
+                    },
+
+                    toggleSortGuru(col) {
+                        if (this.sortColumnGuru === col) {
+                            this.sortAscGuru = !this.sortAscGuru;
+                        } else {
+                            this.sortColumnGuru = col;
+                            this.sortAscGuru = true;
+                        }
+                        this.currentPageGuru = 1;
+                    },
+
+                    getPageRange(type) {
+                        const total = type === 'peserta' ? this.totalPagesPeserta : this.totalPagesGuru;
+                        const current = type === 'peserta' ? this.currentPagePeserta : this.currentPageGuru;
+                        if (total <= 5) return Array.from({length: total}, (_, i) => i + 1);
+                        if (current <= 3) return [1, 2, 3, 4, 5];
+                        if (current >= total - 2) return [total-4, total-3, total-2, total-1, total];
+                        return [current-2, current-1, current, current+1, current+2];
+                    },
+
+                    // Dynamic Export Engine
+                    downloadCSV() {
+                        const isP = this.activePage === 'peserta';
+                        const headers = isP 
+                            ? ['PERTANDINGAN', 'DAERAH', 'SEKOLAH', 'NAMA_MURID', 'JANTINA', 'BANGSA', 'UMUR']
+                            : ['PERTANDINGAN', 'DAERAH', 'SEKOLAH', 'NAMA_GURU', 'JANTINA', 'BANGSA'];
+
+                        let csvContent = "\uFEFF"; 
+                        csvContent += headers.join(",") + "\n";
+
+                        const activeDataset = isP ? this.searchedDataPeserta : this.searchedDataGuru;
+                        activeDataset.forEach(row => {
+                            const line = headers.map(header => {
+                                let cell = row[header] || '';
+                                if (cell.includes(',') || cell.includes('"')) {
+                                    cell = `"${cell.replace(/"/g, '""')}"`;
+                                }
+                                return cell;
+                            }).join(",");
+                            csvContent += line + "\n";
+                        });
+
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", url);
+                        link.setAttribute("download", isP ? `Analisis_Peserta_Koakademik_2026.csv` : `Analisis_Guru_Pembimbing_Koakademik_2026.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                };
+            });
+        });
+    </script>
+    
+    <!-- Alpine JS Core (Added 'defer' tag to guarantee that custom JS declarations compile before boot) -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        .dark ::-webkit-scrollbar-thumb { background: #2c3545; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body x-data="dashboardApp" :class="darkMode ? 'dark bg-powerbi-darkBg text-slate-100' : 'bg-slate-50 text-slate-800'" class="font-sans transition-colors duration-300">
+
+    <div class="min-h-screen flex flex-col">
+        
+        <!-- Top Header (No Sidebars - Content Is Now Full Width) -->
+        <header :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="border-b px-6 py-4 sticky top-0 z-30 transition-colors duration-300 shadow-sm">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-sky-500/10 text-sky-500 rounded-lg">
+                        <i data-lucide="line-chart" class="w-7 h-7"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-500" 
+                                  x-text="activePage === 'peserta' ? 'Analisis Peserta' : 'Analisis Guru Pembimbing'"></span>
+                        </div>
+                        <h1 class="text-lg md:text-xl font-black tracking-tight">ANALISIS PROGRAM KOAKADEMIK UPBM JPN SELANGOR 2026</h1>
+                    </div>
+                </div>
+
+                <!-- Controls & Global Options -->
+                <div class="flex items-center gap-3 self-end md:self-auto">
+                    <!-- Status Indicator -->
+                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold border"
+                         :class="(activePage === 'peserta' ? dataSourcePeserta : dataSourceGuru) === 'sheets' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'">
+                        <span class="w-2 h-2 rounded-full animate-pulse" :class="(activePage === 'peserta' ? dataSourcePeserta : dataSourceGuru) === 'sheets' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                        <span x-text="(activePage === 'peserta' ? dataSourcePeserta : dataSourceGuru) === 'sheets' ? 'Google Sheets' : 'Mod Offline'"></span>
+                    </div>
+
+                    <!-- Cache-busting Refresh Button -->
+                    <button @click="refreshData()" :disabled="refreshing"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition-all duration-200 active:scale-95 disabled:opacity-50"
+                            :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" :class="refreshing ? 'animate-spin text-sky-500' : ''"></i>
+                        <span class="hidden sm:inline" x-text="refreshing ? 'Memuat semula...' : 'Segarkan Data'"></span>
+                    </button>
+
+                    <!-- Dark Mode Toggle -->
+                    <button @click="toggleTheme()" class="p-2.5 rounded-lg border transition-all duration-200 hover:scale-105"
+                            :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border text-yellow-400' : 'bg-white border-slate-200 text-slate-600'">
+                        <i :data-lucide="darkMode ? 'sun' : 'moon'" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ================= TOP HORIZONTAL MENU BAR (Page Switcher) ================= -->
+        <nav :class="darkMode ? 'bg-slate-900 border-powerbi-border' : 'bg-slate-100 border-slate-200'" class="border-b px-6 transition-all duration-300">
+            <div class="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto py-2">
+                <button @click="activePage = 'peserta'" 
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-95"
+                        :class="activePage === 'peserta' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:bg-sky-500/10 hover:text-sky-500'">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span>Analisis Peserta</span>
+                </button>
+                <button @click="activePage = 'guru'" 
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap active:scale-95"
+                        :class="activePage === 'guru' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:bg-sky-500/10 hover:text-sky-500'">
+                    <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                    <span>Analisis Guru Pembimbing</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-grow w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+            
+            <!-- Loading state -->
+            <div x-show="loading" class="flex flex-col items-center justify-center py-32 space-y-4">
+                <div class="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-sm font-semibold text-slate-400">Sedang memproses seluruh pangkalan data JPN Selangor...</p>
+            </div>
+
+            <!-- Dashboard Pages when Loaded -->
+            <div x-show="!loading" x-cloak class="space-y-6">
+                
+                <!-- ========================================================================= -->
+                <!-- PAGE 1: ANALISIS PESERTA -->
+                <!-- ========================================================================= -->
+                <div x-show="activePage === 'peserta'" class="space-y-6">
+                    
+                    <!-- Panel Filter Peserta -->
+                    <section :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                        <div class="flex items-center justify-between mb-4 pb-2 border-b" :class="darkMode ? 'border-powerbi-border' : 'border-slate-100'">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="filter" class="w-5 h-5 text-sky-500"></i>
+                                <h2 class="font-bold text-sm uppercase tracking-wider">Tapisan Maklumat Peserta</h2>
+                            </div>
+                            <button @click="resetFilters()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Set Semula
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pertandingan</label>
+                                <select x-model="filtersPeserta.pertandingan" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Pertandingan</option>
+                                    <template x-for="item in uniquePeserta.pertandingan" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Daerah</label>
+                                <select x-model="filtersPeserta.daerah" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Daerah</option>
+                                    <template x-for="item in uniquePeserta.daerah" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jantina</label>
+                                <select x-model="filtersPeserta.jantina" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Jantina</option>
+                                    <template x-for="item in uniquePeserta.jantina" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bangsa</label>
+                                <select x-model="filtersPeserta.bangsa" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Bangsa</option>
+                                    <template x-for="item in uniquePeserta.bangsa" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Umur</label>
+                                <select x-model="filtersPeserta.umur" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Umur</option>
+                                    <template x-for="item in uniquePeserta.umur" :key="item">
+                                        <option :value="item" x-text="item + ' Tahun'"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- KPIs Peserta -->
+                    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jumlah Peserta</p>
+                                <h3 class="text-2xl font-black text-sky-500" x-text="pesertaFiltered.length"></h3>
+                            </div>
+                            <div class="p-3 bg-sky-500/10 text-sky-500 rounded-lg"><i data-lucide="users" class="w-5 h-5"></i></div>
+                        </div>
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bilangan Sekolah</p>
+                                <h3 class="text-2xl font-black text-emerald-500" x-text="statsPeserta.schoolCount"></h3>
+                            </div>
+                            <div class="p-3 bg-emerald-500/10 text-emerald-500 rounded-lg"><i data-lucide="school" class="w-5 h-5"></i></div>
+                        </div>
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1 font-sans">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bilangan Daerah</p>
+                                <h3 class="text-2xl font-black text-amber-500" x-text="statsPeserta.districtCount"></h3>
+                            </div>
+                            <div class="p-3 bg-amber-500/10 text-amber-500 rounded-lg"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+                        </div>
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Purata Umur</p>
+                                <h3 class="text-2xl font-black text-indigo-500" x-text="statsPeserta.averageAge"></h3>
+                            </div>
+                            <div class="p-3 bg-indigo-500/10 text-indigo-500 rounded-lg"><i data-lucide="calendar" class="w-5 h-5"></i></div>
+                        </div>
+                    </section>
+
+                    <!-- Visualizations Peserta -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Daerah -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Penglibatan Mengikut Daerah</h4>
+                            <div class="space-y-3.5">
+                                <template x-for="item in chartsPeserta.daerah" :key="item.name">
+                                    <div>
+                                        <div class="flex justify-between text-[11px] font-semibold mb-1">
+                                            <span x-text="item.name"></span>
+                                            <span x-text="item.count + ' Murid (' + item.percentage + '%)'"></span>
+                                        </div>
+                                        <div class="w-full h-5 rounded overflow-hidden flex" :class="darkMode ? 'bg-slate-900' : 'bg-slate-100'">
+                                            <div class="bg-gradient-to-r from-sky-500 to-indigo-500 h-full rounded transition-all duration-700" :style="'width: ' + item.percentage + '%'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- Pertandingan -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Penyertaan Mengikut Pertandingan</h4>
+                            <div class="space-y-3.5">
+                                <template x-for="item in chartsPeserta.pertandingan" :key="item.name">
+                                    <div>
+                                        <div class="flex justify-between text-[11px] font-semibold mb-1">
+                                            <span x-text="item.name"></span>
+                                            <span x-text="item.count + ' Murid (' + item.percentage + '%)'"></span>
+                                        </div>
+                                        <div class="w-full h-5 rounded overflow-hidden flex" :class="darkMode ? 'bg-slate-900' : 'bg-slate-100'">
+                                            <div class="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded transition-all duration-700" :style="'width: ' + item.percentage + '%'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Jantina -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Agihan Jantina Peserta</h4>
+                            <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                                <div class="relative w-32 h-32 rounded-full flex items-center justify-center shadow-inner animate-fade-in" :style="'background: ' + getConicGradient(chartsPeserta.jantina, 'jantina')">
+                                    <div class="absolute w-24 h-24 rounded-full flex flex-col items-center justify-center" :class="darkMode ? 'bg-powerbi-cardBg' : 'bg-white'">
+                                        <span class="text-[10px] font-bold uppercase text-slate-400">Total</span>
+                                        <span class="text-sm font-black" x-text="pesertaFiltered.length"></span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <template x-for="item in chartsPeserta.jantina" :key="item.name">
+                                        <div class="flex items-center gap-2.5 text-xs">
+                                            <span class="w-3 h-3 rounded-full" :class="item.name === 'Lelaki' || item.name === 'LELAKI' ? 'bg-cyan-500' : 'bg-pink-500'"></span>
+                                            <span class="font-bold" x-text="item.name + ': ' + item.count + ' (' + item.percentage + '%)'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Bangsa -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Demografi Etnik Peserta</h4>
+                            <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                                <div class="relative w-32 h-32 rounded-full flex items-center justify-center shadow-inner" :style="'background: ' + getConicGradient(chartsPeserta.bangsa, 'bangsa')">
+                                    <div class="absolute w-24 h-24 rounded-full flex flex-col items-center justify-center" :class="darkMode ? 'bg-powerbi-cardBg' : 'bg-white'">
+                                        <span class="text-[9px] font-bold uppercase text-slate-400">Etnik</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <template x-for="item in chartsPeserta.bangsa" :key="item.name">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 rounded" :style="'background-color: ' + getBangsaColor(item.name)"></span>
+                                            <span class="font-semibold text-[10px]" x-text="item.name + ': ' + item.percentage + '%'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jadual Peserta -->
+                    <section class="space-y-4">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="relative w-full sm:max-w-md">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-lucide="search" class="w-4 h-4"></i></span>
+                                <input type="text" x-model="searchTermPeserta" placeholder="Cari nama murid atau sekolah..."
+                                       class="w-full text-xs pl-10 pr-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-sky-500/20 transition outline-none"
+                                       :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100 focus:border-sky-500' : 'bg-white border-slate-300 text-slate-800 focus:border-sky-500'">
+                            </div>
+                            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                                <span class="text-[10px] text-slate-400 font-semibold">
+                                    Memaparkan <span class="font-bold text-sky-500" x-text="paginatedDataPeserta.length"></span> dari <span class="font-bold text-emerald-500" x-text="searchedDataPeserta.length"></span> ditapis
+                                </span>
+                                <button @click="downloadCSV()" class="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm">
+                                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Muat Turun CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-xl border" :class="darkMode ? 'border-powerbi-border bg-powerbi-cardBg' : 'border-slate-200 bg-white'">
+                            <table class="w-full table-fixed border-collapse text-left text-[11px] md:text-xs">
+                                <thead :class="darkMode ? 'bg-slate-900/50 text-slate-200 border-powerbi-border' : 'bg-slate-50 text-slate-700 border-slate-200'" class="border-b font-semibold text-xs">
+                                    <tr>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[24%]" @click="toggleSortPeserta('NAMA_MURID')">Nama Murid <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[24%]" @click="toggleSortPeserta('SEKOLAH')">Sekolah <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[16%]" @click="toggleSortPeserta('DAERAH')">Daerah <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[16%]" @click="toggleSortPeserta('PERTANDINGAN')">Pertandingan <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-2 py-3.5 text-center w-[7%]">Jantina</th>
+                                        <th class="px-2 py-3.5 text-center w-[7%]">Bangsa</th>
+                                        <th class="px-2 py-3.5 text-center w-[6%]">Umur</th>
+                                    </tr>
+                                </thead>
+                                <tbody :class="darkMode ? 'divide-slate-800/50' : 'divide-slate-100'" class="divide-y font-medium text-[11px] md:text-xs">
+                                    <template x-for="(row, index) in paginatedDataPeserta" :key="index">
+                                        <tr :class="darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'" class="transition">
+                                            <td class="px-3 py-2.5 font-bold break-words whitespace-normal leading-normal text-slate-100 dark:text-slate-100" x-text="row.NAMA_MURID"></td>
+                                            <td class="px-3 py-2.5 text-slate-400 dark:text-slate-300 break-words whitespace-normal leading-normal" x-text="row.SEKOLAH"></td>
+                                            <td class="px-3 py-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="darkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-100 text-amber-800'" x-text="row.DAERAH"></span></td>
+                                            <td class="px-3 py-2.5 text-slate-400 dark:text-slate-300 break-words whitespace-normal leading-normal" x-text="row.PERTANDINGAN"></td>
+                                            <td class="px-2 py-2.5 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="row.JANTINA === 'Lelaki' || row.JANTINA === 'LELAKI' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-pink-500/10 text-pink-400'" x-text="row.JANTINA"></span></td>
+                                            <td class="px-2 py-2.5 text-center" x-text="row.BANGSA"></td>
+                                            <td class="px-2 py-2.5 text-center font-bold" x-text="row.UMUR + ' Thn'"></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="paginatedDataPeserta.length === 0">
+                                        <td colspan="7" class="px-3 py-12 text-center text-slate-400 font-medium">Tiada rekod peserta koakademik ditemui.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination Peserta -->
+                        <div x-show="totalPagesPeserta > 1" class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                            <span class="text-xs text-slate-400 font-medium">Halaman <span class="font-bold text-sky-500" x-text="currentPagePeserta"></span> dari <span class="font-bold" x-text="totalPagesPeserta"></span> keseluruhan</span>
+                            <div class="flex items-center gap-1.5">
+                                <button @click="currentPagePeserta > 1 ? currentPagePeserta-- : null" :disabled="currentPagePeserta === 1" class="p-2 rounded-lg border transition disabled:opacity-40" :class="darkMode ? 'bg-slate-800 border-powerbi-border hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                                <template x-for="p in getPageRange('peserta')" :key="p">
+                                    <button @click="currentPagePeserta = p" class="w-9 h-9 text-xs font-bold rounded-lg transition" :class="currentPagePeserta === p ? 'bg-sky-500 text-white' : (darkMode ? 'bg-slate-800 border border-powerbi-border hover:bg-slate-700' : 'bg-white border border-slate-200 hover:bg-slate-50')" x-text="p"></button>
+                                </template>
+                                <button @click="currentPagePeserta < totalPagesPeserta ? currentPagePeserta++ : null" :disabled="currentPagePeserta === totalPagesPeserta" class="p-2 rounded-lg border transition disabled:opacity-40" :class="darkMode ? 'bg-slate-800 border-powerbi-border hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+                <!-- ========================================================================= -->
+                <!-- PAGE 2: ANALISIS GURU PEMBIMBING -->
+                <!-- ========================================================================= -->
+                <div x-show="activePage === 'guru'" class="space-y-6" x-cloak>
+                    
+                    <!-- Panel Filter Guru -->
+                    <section :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                        <div class="flex items-center justify-between mb-4 pb-2 border-b" :class="darkMode ? 'border-powerbi-border' : 'border-slate-100'">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="filter" class="w-5 h-5 text-sky-500"></i>
+                                <h2 class="font-bold text-sm uppercase tracking-wider">Tapisan Guru Pembimbing</h2>
+                            </div>
+                            <button @click="resetFilters()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Set Semula
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pertandingan</label>
+                                <select x-model="filtersGuru.pertandingan" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Pertandingan</option>
+                                    <template x-for="item in uniqueGuru.pertandingan" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Daerah</label>
+                                <select x-model="filtersGuru.daerah" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Daerah</option>
+                                    <template x-for="item in uniqueGuru.daerah" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jantina</label>
+                                <select x-model="filtersGuru.jantina" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Jantina</option>
+                                    <template x-for="item in uniqueGuru.jantina" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bangsa</label>
+                                <select x-model="filtersGuru.bangsa" class="w-full text-xs rounded-lg p-2 border cursor-pointer outline-none"
+                                        :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100' : 'bg-white border-slate-300 text-slate-800'">
+                                    <option value="">Semua Bangsa</option>
+                                    <template x-for="item in uniqueGuru.bangsa" :key="item">
+                                        <option :value="item" x-text="item"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- KPIs Guru -->
+                    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jumlah Guru Pembimbing</p>
+                                <h3 class="text-2xl font-black text-sky-500" x-text="guruFiltered.length"></h3>
+                            </div>
+                            <div class="p-3 bg-sky-500/10 text-sky-500 rounded-lg"><i data-lucide="graduation-cap" class="w-5 h-5"></i></div>
+                        </div>
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1 font-sans">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sekolah Terlibat</p>
+                                <h3 class="text-2xl font-black text-emerald-500" x-text="statsGuru.schoolCount"></h3>
+                            </div>
+                            <div class="p-3 bg-emerald-500/10 text-emerald-500 rounded-lg"><i data-lucide="school" class="w-5 h-5"></i></div>
+                        </div>
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border flex items-center justify-between">
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Daerah Terlibat</p>
+                                <h3 class="text-2xl font-black text-amber-500" x-text="statsGuru.districtCount"></h3>
+                            </div>
+                            <div class="p-3 bg-amber-500/10 text-amber-500 rounded-lg"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+                        </div>
+                    </section>
+
+                    <!-- Visualizations Guru -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Daerah -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Penglibatan Guru Mengikut Daerah</h4>
+                            <div class="space-y-3.5">
+                                <template x-for="item in chartsGuru.daerah" :key="item.name">
+                                    <div>
+                                        <div class="flex justify-between text-[11px] font-semibold mb-1">
+                                            <span x-text="item.name"></span>
+                                            <span x-text="item.count + ' Guru (' + item.percentage + '%)'"></span>
+                                        </div>
+                                        <div class="w-full h-5 rounded overflow-hidden flex" :class="darkMode ? 'bg-slate-900' : 'bg-slate-100'">
+                                            <div class="bg-gradient-to-r from-sky-500 to-indigo-500 h-full rounded transition-all duration-700" :style="'width: ' + item.percentage + '%'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- Pertandingan -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Penglibatan Guru Mengikut Pertandingan</h4>
+                            <div class="space-y-3.5">
+                                <template x-for="item in chartsGuru.pertandingan" :key="item.name">
+                                    <div>
+                                        <div class="flex justify-between text-[11px] font-semibold mb-1">
+                                            <span x-text="item.name"></span>
+                                            <span x-text="item.count + ' Guru (' + item.percentage + '%)'"></span>
+                                        </div>
+                                        <div class="w-full h-5 rounded overflow-hidden flex" :class="darkMode ? 'bg-slate-900' : 'bg-slate-100'">
+                                            <div class="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded transition-all duration-700" :style="'width: ' + item.percentage + '%'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Jantina -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Agihan Jantina Guru</h4>
+                            <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                                <div class="relative w-32 h-32 rounded-full flex items-center justify-center shadow-inner" :style="'background: ' + getConicGradient(chartsGuru.jantina, 'jantina')">
+                                    <div class="absolute w-28 h-28 rounded-full flex flex-col items-center justify-center" :class="darkMode ? 'bg-powerbi-cardBg' : 'bg-white'">
+                                        <span class="text-[10px] font-bold uppercase text-slate-400">Total</span>
+                                        <span class="text-sm font-black" x-text="guruFiltered.length"></span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <template x-for="item in chartsGuru.jantina" :key="item.name">
+                                        <div class="flex items-center gap-2.5 text-xs">
+                                            <span class="w-3 h-3 rounded-full" :class="item.name === 'Lelaki' || item.name === 'LELAKI' ? 'bg-cyan-500' : 'bg-pink-500'"></span>
+                                            <span class="font-bold" x-text="item.name + ': ' + item.count + ' (' + item.percentage + '%)'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Bangsa -->
+                        <div :class="darkMode ? 'bg-powerbi-cardBg border-powerbi-border' : 'bg-white border-slate-200'" class="p-5 rounded-xl border shadow-sm">
+                            <h4 class="font-bold text-sm uppercase tracking-wider mb-4">Demografi Etnik Guru</h4>
+                            <div class="flex flex-col sm:flex-row items-center justify-around gap-6">
+                                <div class="relative w-32 h-32 rounded-full flex items-center justify-center shadow-inner" :style="'background: ' + getConicGradient(chartsGuru.bangsa, 'bangsa')">
+                                    <div class="absolute w-28 h-28 rounded-full flex flex-col items-center justify-center" :class="darkMode ? 'bg-powerbi-cardBg' : 'bg-white'">
+                                        <span class="text-[9px] font-bold uppercase text-slate-400">Etnik</span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <template x-for="item in chartsGuru.bangsa" :key="item.name">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 rounded" :style="'background-color: ' + getBangsaColor(item.name)"></span>
+                                            <span class="font-semibold text-[10px]" x-text="item.name + ': ' + item.percentage + '%'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jadual Guru -->
+                    <section class="space-y-4">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="relative w-full sm:max-w-md">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-lucide="search" class="w-4 h-4"></i></span>
+                                <input type="text" x-model="searchTermGuru" placeholder="Cari nama guru atau sekolah..."
+                                       class="w-full text-xs pl-10 pr-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-sky-500/20 transition outline-none"
+                                       :class="darkMode ? 'bg-slate-900 border-powerbi-border text-slate-100 focus:border-sky-500' : 'bg-white border-slate-300 text-slate-800 focus:border-sky-500'">
+                            </div>
+                            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                                <span class="text-[10px] text-slate-400 font-semibold">
+                                    Memaparkan <span class="font-bold text-sky-500" x-text="paginatedDataGuru.length"></span> dari <span class="font-bold text-emerald-500" x-text="searchedDataGuru.length"></span> ditapis
+                                </span>
+                                <button @click="downloadCSV()" class="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm">
+                                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Muat Turun CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-xl border" :class="darkMode ? 'border-powerbi-border bg-powerbi-cardBg' : 'border-slate-200 bg-white'">
+                            <table class="w-full table-fixed border-collapse text-left text-[11px] md:text-xs">
+                                <thead :class="darkMode ? 'bg-slate-900/50 text-slate-200 border-powerbi-border' : 'bg-slate-50 text-slate-700 border-slate-200'" class="border-b font-semibold text-xs">
+                                    <tr>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[28%]" @click="toggleSortGuru('NAMA_GURU')">Nama Guru <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[26%]" @click="toggleSortGuru('SEKOLAH')">Sekolah <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[16%]" @click="toggleSortGuru('DAERAH')">Daerah <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-3 py-3.5 cursor-pointer hover:bg-slate-800/10 transition w-[16%]" @click="toggleSortGuru('PERTANDINGAN')">Pertandingan <i data-lucide="chevrons-up-down" class="inline w-3 h-3 ml-0.5"></i></th>
+                                        <th class="px-2 py-3.5 text-center w-[7%]">Jantina</th>
+                                        <th class="px-2 py-3.5 text-center w-[7%]">Bangsa</th>
+                                    </tr>
+                                </thead>
+                                <tbody :class="darkMode ? 'divide-slate-800/50' : 'divide-slate-100'" class="divide-y font-medium text-[11px] md:text-xs">
+                                    <template x-for="(row, index) in paginatedDataGuru" :key="index">
+                                        <tr :class="darkMode ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'" class="transition">
+                                            <td class="px-3 py-2.5 font-bold break-words whitespace-normal leading-normal text-slate-100 dark:text-slate-100" x-text="row.NAMA_GURU"></td>
+                                            <td class="px-3 py-2.5 text-slate-400 dark:text-slate-300 break-words whitespace-normal leading-normal" x-text="row.SEKOLAH"></td>
+                                            <td class="px-3 py-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="darkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-100 text-amber-800'" x-text="row.DAERAH"></span></td>
+                                            <td class="px-3 py-2.5 text-slate-400 dark:text-slate-300 break-words whitespace-normal leading-normal" x-text="row.PERTANDINGAN"></td>
+                                            <td class="px-2 py-2.5 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="row.JANTINA === 'Lelaki' || row.JANTINA === 'LELAKI' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-pink-500/10 text-pink-400'" x-text="row.JANTINA"></span></td>
+                                            <td class="px-2 py-2.5 text-center" x-text="row.BANGSA"></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="paginatedDataGuru.length === 0">
+                                        <td colspan="6" class="px-3 py-12 text-center text-slate-400 font-medium">Tiada rekod guru pembimbing ditemui.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination Guru -->
+                        <div x-show="totalPagesGuru > 1" class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                            <span class="text-xs text-slate-400 font-medium">Halaman <span class="font-bold text-sky-500" x-text="currentPageGuru"></span> dari <span class="font-bold" x-text="totalPagesGuru"></span> keseluruhan</span>
+                            <div class="flex items-center gap-1.5">
+                                <button @click="currentPageGuru > 1 ? currentPageGuru-- : null" :disabled="currentPageGuru === 1" class="p-2 rounded-lg border transition disabled:opacity-40" :class="darkMode ? 'bg-slate-800 border-powerbi-border hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                                <template x-for="p in getPageRange('guru')" :key="p">
+                                    <button @click="currentPageGuru = p" class="w-9 h-9 text-xs font-bold rounded-lg transition" :class="currentPageGuru === p ? 'bg-sky-500 text-white' : (darkMode ? 'bg-slate-800 border border-powerbi-border hover:bg-slate-700' : 'bg-white border border-slate-200 hover:bg-slate-50')" x-text="p"></button>
+                                </template>
+                                <button @click="currentPageGuru < totalPagesGuru ? currentPageGuru++ : null" :disabled="currentPageGuru === totalPagesGuru" class="p-2 rounded-lg border transition disabled:opacity-40" :class="darkMode ? 'bg-slate-800 border-powerbi-border hover:bg-slate-700' : 'bg-white border-slate-200 hover:bg-slate-50'"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Floating Notification -->
+    <div x-show="toast.show" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-y-4 scale-95"
+         class="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-xs font-bold border"
+         :class="toast.type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-rose-600 border-rose-500 text-white'"
+         x-cloak>
+        <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-5 h-5"></i>
+        <span x-text="toast.message"></span>
+    </div>
+</body>
+</html>
